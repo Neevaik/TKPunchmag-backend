@@ -9,6 +9,7 @@ function verifyToken(req, res, next) {
 
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
         if (err) { return res.status(401).json({ message: "Invalid token" }); }
+        console.log("decoded : ",decoded)
         req.user = decoded;
         next();
     })
@@ -25,7 +26,8 @@ function verifyBody(requiredFields) {
 }
 
 async function verifyExistingUser(req, res, next) {
-    const { username } = req.body;
+    let { username } = req.body;
+    username = username.trim();
     const user = await User.findOne({ username });
     if (user) { return res.status(409).json({ message: "User already exist" }); }
     next();

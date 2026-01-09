@@ -3,8 +3,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 async function signup(req, res) {
-    const { username, email, password } = req.body;
+    let { username, email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
+    username = username.trim();
     const newUser = new User({
         username,
         email,
@@ -38,4 +39,27 @@ async function login(req, res) {
     });
 }
 
-module.exports = { signup, login };
+async function updateUser(req, res) {
+    const { username, email, password } = req.body;
+    const updateData = {};
+    if (username) {
+        updateData.username = username.trim();
+        const existingUser = await User.findOne({ username: username.trim() })
+        if (existingUser) { return res.status(409).json({ message: "❌ Username already exist" }); }
+    }
+    if (email) { updateData.email = email; }
+    if (password) { updateData.password = await bcrypt.hash(password, 10); }
+
+    await User.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+    );
+    res.json({ message: "✅ User updated", updatedUser: updateData });
+}
+
+async function deleteUser(req, res) {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "✅ User deleted" })
+}
+
+module.exports = { signup, login, updateUser, deleteUser };
