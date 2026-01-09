@@ -2,7 +2,6 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const { generateAccessToken, generateRefreshToken } = require("../middlewares/generateToken");
 const { verifyRefreshToken } = require("../middlewares/verifications");
-const jwt = require("jsonwebtoken");
 
 async function signup(req, res) {
     let { username, email, password } = req.body;
@@ -44,7 +43,33 @@ async function login(req, res) {
 }
 
 async function logout(req, res) {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+        res.clearCookie("accessToken");
+        return res.status(204).end();
+    }
 
+    const user = await User.findOne({ refreshToken });
+    if (user) {
+        user.refreshToken = null;
+        await user.save();
+    }
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+    
+    return res.status(200).json({
+        message: "✅ Logout successful",
+    });
 }
 
 async function updateUser(req, res) {
@@ -70,4 +95,4 @@ async function deleteUser(req, res) {
     res.json({ message: "✅ User deleted" })
 }
 
-module.exports = { signup, login, updateUser, deleteUser };
+module.exports = { signup, login, logout, updateUser, deleteUser };
