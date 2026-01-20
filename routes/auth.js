@@ -6,7 +6,7 @@ const { signup, login, logout, updateUser, deleteUser } = require("../controller
 
 router.post("/login", verifyBody(["username", "password"]), login)
 
-router.post("/logout", verifyBody(["username", "password"]), logout)
+router.post("/logout", logout)
 
 router.post("/signup", verifyBody(["username", "password", "email"]), verifyExistingUser, signup)
 
