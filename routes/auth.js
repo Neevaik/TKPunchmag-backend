@@ -1,17 +1,17 @@
 const express = require("express");
 const router = express.Router();
 
-const { verifyBody, verifyExistingUser, verifyAccessToken } = require("../middlewares/verifications");
+const { verifyBody } = require("../middlewares/verifications");
 const { signup, login, logout, updateUser, deleteUser } = require("../controllers/authController");
 
 router.post("/login", verifyBody(["username", "password"]), login)
 
+router.post("/signup", verifyBody(["username", "password", "email"]), signup)
+
 router.post("/logout", logout)
 
-router.post("/signup", verifyBody(["username", "password", "email"]), verifyExistingUser, signup)
+router.put("/:id", updateUser);
 
-router.put("/:id", verifyAccessToken, updateUser);
-
-router.delete("/:id", verifyAccessToken, deleteUser);
+router.delete("/:id", deleteUser);
 
 module.exports = router;

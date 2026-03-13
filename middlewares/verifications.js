@@ -1,39 +1,25 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-function verifyAccessToken(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) { return res.status(401).json({ message: "❌No token" }); }
+function verifyToken(req, res, next) {
+  try {
+    const token = req.cookies.token;
 
-    const token = authHeader.split(" ")[1];
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) { return res.status(401).json({ message: "❌ Invalid token" }); }
-        req.user = decoded;
-        next();
-    })
-}
-
-async function verifyRefreshToken(user) {
-    try {
-        const decoded = jwt.verify(
-            user.refreshToken,
-            process.env.JWT_REFRESH_SECRET,
-        )
-        return { valid: true, decoded };
-
-    } catch (error) {
-        if (error.name === "TokenExpiredError") {
-            return {
-                valid: false,
-                reason: "EXPIRED"
-            };
-        }
-        return {
-            valid: false,
-            reason: "INVALID"
-        };
+    if (!token) {
+      return res.status(401).json({ message: "❌ No token provided" });
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET);
+
+    req.userId = decoded.id;
+
+    next();
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "❌ Token expired" });
+    }
+    return res.status(401).json({ message: "❌ Invalid token" });
+  }
 }
 
 function verifyBody(requiredFields) {
@@ -47,11 +33,29 @@ function verifyBody(requiredFields) {
 }
 
 async function verifyExistingUser(req, res, next) {
-    let { username } = req.body;
-    username = username.trim();
-    const user = await User.findOne({ username });
-    if (user) { return res.status(409).json({ message: "User already exist" }); }
-    next();
+    try {
+        let { username } = req.body;
+
+        username = username.trim();
+        if (!username) {
+            return res.status(400).json({
+                ok: false,
+                message: "❌ Username is required"
+            });
+        }
+
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(409).json({
+                ok: false,
+                message: "❌ Username already exists"
+            });
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
 }
 
-module.exports = { verifyAccessToken, verifyBody, verifyExistingUser, verifyRefreshToken };
+module.exports = { verifyBody, verifyExistingUser, verifyToken};

@@ -1,98 +1,157 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-const { generateAccessToken, generateRefreshToken } = require("../middlewares/generateToken");
-const { verifyRefreshToken } = require("../middlewares/verifications");
+const { generateToken } = require("../middlewares/generateToken");
+const { verifyToken, verifyExistingUser } = require("../middlewares/verifications");
 
-async function signup(req, res) {
-    let { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    username = username.trim();
-    const newUser = new User({
-        username,
-        email,
-        password: hashedPassword,
-    });
-    const refreshToken = await generateRefreshToken(newUser);
-    newUser.refreshToken = await generateRefreshToken(newUser);
+async function signup(req, res, next) {
+    try {
+        let { username, email, password } = req.body;
 
-    await newUser.save();
-    const accessToken = await generateAccessToken(refreshToken);
+        username = username.trim();
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    res.status(201).json({ message: "✅ User created", token: accessToken })
+        const newUser = new User({
+            username,
+            email,
+            password: hashedPassword,
+        });
+
+        const token = await generateToken(newUser);
+
+        await newUser.save();
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            sameSite: "strict",
+            maxAge: 5 * 60 * 1000,
+        });
+
+        res.status(201).json({
+            ok: true,
+            message: "✅ User created",
+            token
+        });
+
+    } catch (error) {
+        next(error);
+    }
 }
 
-async function login(req, res) {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user) { return res.status(401).json("User not found"); }
+async function login(req, res, next) {
+    try {
+        const { username, password } = req.body;
+        
+        const user = await User.findOne({ username });
+        if (!user) { return res.status(401).json("User not found"); }
 
-    const isPasswordValid = bcrypt.compare(password, user.password);
-    if (!isPasswordValid) { return res.status(401).json({ message: "❌ Invalid credentials" }); }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) return res.status(401).json({
+            ok: false,
+            message: "❌ Invalid credentials"
+        });
 
-    const refreshTokenVerified = await verifyRefreshToken(user);
-    if (refreshTokenVerified.valid === false) {
-        user.refreshToken = await generateRefreshToken(user);
+        const token = await generateToken(user);
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            sameSite: "strict",
+            maxAge: 5 * 60 * 1000,
+        });
+
+        res.status(200).json({
+            ok: true,
+            message: "✅ User connected",
+            token
+        });
+
+    } catch (error) {
+        next(error);
     }
-
-    const accessToken = await generateAccessToken(user.refreshToken);
-
-    return res.status(200).json({
-        message: "✅ User connected",
-        accessToken
-    });
 }
 
-async function logout(req, res) {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-        res.clearCookie("accessToken");
-        return res.status(204).end();
+async function logout(req, res, next) {
+    try {
+        res.clearCookie("token", {
+            httpOnly: true,
+            sameSite: "strict",
+        });
+
+        return res.status(200).json({
+            ok: true,
+            message: "✅ Logout successful",
+        });
+
+    } catch (error) {
+        next(error);
     }
-
-    const user = await User.findOne({ refreshToken });
-    if (user) {
-        user.refreshToken = null;
-        await user.save();
-    }
-
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
-
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
-    
-    return res.status(200).json({
-        message: "✅ Logout successful",
-    });
 }
 
-async function updateUser(req, res) {
-    const { username, email, password } = req.body;
-    const updateData = {};
-    if (username) {
-        updateData.username = username.trim();
-        const existingUser = await User.findOne({ username: username.trim() })
-        if (existingUser) { return res.status(409).json({ message: "❌ Username already exist" }); }
-    }
-    if (email) { updateData.email = email; }
-    if (password) { updateData.password = await bcrypt.hash(password, 10); }
+async function updateUser(req, res, next) {
+    try {
+        const { username, email, password } = req.body;
 
-    await User.findByIdAndUpdate(
-        req.params.id,
-        updateData,
-    );
-    res.json({ message: "✅ User updated", updatedUser: updateData });
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({
+                ok: false,
+                message: "❌ User not found"
+            });
+        }
+
+        const updateData = {};
+
+        if (username) {
+            const trimmedUsername = username.trim();
+
+            const existingUser = await User.findOne({ username: trimmedUsername });
+
+            if (existingUser && existingUser._id.toString() !== req.params.id) {
+                return res.status(409).json({
+                    ok: false,
+                    message: "❌ Username already exists"
+                });
+            }
+
+            updateData.username = trimmedUsername;
+        }
+
+        if (email) { updateData.email = email; }
+        if (password) { updateData.password = await bcrypt.hash(password, 10); }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+
+        res.json({
+            ok: true,
+            message: "✅ User updated",
+            updatedUser
+        });
+
+    } catch (error) {
+        next(error);
+    }
 }
 
 async function deleteUser(req, res) {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: "✅ User deleted" })
+    try {
+        const user = await User.findByIdAndDelete(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({
+                ok: false,
+                message: "❌ User not found"
+            });
+        }
+        res.json({
+            ok: true,
+            message: "✅ User deleted"
+        })
+    } catch (error) {
+        next(error);
+    }
 }
 
 module.exports = { signup, login, logout, updateUser, deleteUser };
