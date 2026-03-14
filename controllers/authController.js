@@ -1,7 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../middlewares/generateToken");
-const { verifyToken, verifyExistingUser } = require("../middlewares/verifications");
 
 async function signup(req, res, next) {
     try {
