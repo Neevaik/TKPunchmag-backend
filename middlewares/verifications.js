@@ -23,39 +23,13 @@ function verifyToken(req, res, next) {
 }
 
 function verifyBody(requiredFields) {
-    return (req, res, next) => {
-        const missingFields = requiredFields.filter(field => !req.body[field]);
-        if (missingFields.length > 0) {
-            return res.status(400).json({ message: `Missing field : ${missingFields.join(", ")}` });
-        }
-        next();
+  return (req, res, next) => {
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({ message: `Missing field : ${missingFields.join(", ")}` });
     }
+    next();
+  }
 }
 
-async function verifyExistingUser(req, res, next) {
-    try {
-        let { username } = req.body;
-
-        username = username.trim();
-        if (!username) {
-            return res.status(400).json({
-                ok: false,
-                message: "❌ Username is required"
-            });
-        }
-
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(409).json({
-                ok: false,
-                message: "❌ Username already exists"
-            });
-        }
-
-        next();
-    } catch (error) {
-        next(error);
-    }
-}
-
-module.exports = { verifyBody, verifyExistingUser, verifyToken};
+module.exports = { verifyBody, verifyToken };
