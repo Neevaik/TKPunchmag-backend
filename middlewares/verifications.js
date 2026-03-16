@@ -3,22 +3,34 @@ const User = require("../models/User");
 
 function verifyToken(req, res, next) {
   try {
-    const token = req.cookies.token;
-
+    const token = req.cookies?.token;
     if (!token) {
-      return res.status(401).json({ message: "❌ No token provided" });
+      return res.status(401).json({
+        ok: false,
+        message: "No authentication token"
+      });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET);
 
-    req.userId = decoded.id;
+    req.user = {
+      id: decoded.id,
+      role: decoded.role
+    };
 
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "❌ Token expired" });
+      return res.status(401).json({
+        ok: false,
+        message: "Token expired"
+      });
     }
-    return res.status(401).json({ message: "❌ Invalid token" });
+
+    return res.status(401).json({
+      ok: false,
+      message: "Invalid token"
+    });
   }
 }
 

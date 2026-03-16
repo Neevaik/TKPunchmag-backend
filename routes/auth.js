@@ -10,7 +10,7 @@ router.post("/signup", verifyBody(["username", "password", "email"]), signup)
 
 router.post("/logout", logout)
 
-router.put("/:id", updateUser);
+router.put("/:id", verifyToken, updateUser);
 
 router.delete("/:id", verifyToken, deleteUser);
 
