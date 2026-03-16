@@ -81,6 +81,33 @@ async function getProductBySlug(req, res, next) {
     }
 }
 
+async function getProductsByCategory(req, res, next) {
+    try {
+
+        const { category } = req.params;
+        const products = await Product.find({
+            category: { $regex: category, $options: "i" }
+        });
+
+        if (products.length === 0) {
+            return res.status(404).json({
+                ok: false,
+                message: "No products found for this category"
+            });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            category,
+            count: products.length,
+            products
+        });
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 async function searchProducts(req, res, next) {
     try {
 
@@ -125,4 +152,5 @@ module.exports = {
     getProducts,
     getProductBySlug,
     searchProducts,
+    getProductsByCategory,
 };

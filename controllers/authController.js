@@ -28,10 +28,17 @@ async function signup(req, res, next) {
         res.status(201).json({
             ok: true,
             message: "✅ User created",
+            id: newUser._id,
             token
         });
 
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                ok: false,
+                message: "❌ Username ou email déjà utilisé"
+            });
+        }
         next(error);
     }
 }
@@ -39,9 +46,14 @@ async function signup(req, res, next) {
 async function login(req, res, next) {
     try {
         const { username, password } = req.body;
-        
+
         const user = await User.findOne({ username });
-        if (!user) { return res.status(401).json("User not found"); }
+        if (!user) {
+            return res.status(401).json({
+                ok: false,
+                message: "User not found"
+            });
+        }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) return res.status(401).json({
@@ -60,7 +72,8 @@ async function login(req, res, next) {
         res.status(200).json({
             ok: true,
             message: "✅ User connected",
-            token
+            id: user._id,
+            token,
         });
 
     } catch (error) {
@@ -88,8 +101,9 @@ async function logout(req, res, next) {
 async function updateUser(req, res, next) {
     try {
         const { username, email, password } = req.body;
+        const userId = req.params.id;
 
-        const user = await User.findById(req.params.id);
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
                 ok: false,
@@ -102,38 +116,53 @@ async function updateUser(req, res, next) {
         if (username) {
             const trimmedUsername = username.trim();
 
-            const existingUser = await User.findOne({ username: trimmedUsername });
-
-            if (existingUser && existingUser._id.toString() !== req.params.id) {
+            const existingUsername = await User.findOne({ username: trimmedUsername });
+            if (existingUsername && existingUsername._id.toString() === userId) {
                 return res.status(409).json({
                     ok: false,
-                    message: "❌ Username already exists"
+                    message: "❌ Username already used"
                 });
             }
 
             updateData.username = trimmedUsername;
         }
 
-        if (email) { updateData.email = email; }
-        if (password) { updateData.password = await bcrypt.hash(password, 10); }
+        if (email) {
+            const existingEmail = await User.findOne({ email });
+            if (existingEmail && existingEmail._id.toString() !== userId) {
+                return res.status(409).json({
+                    ok: false,
+                    message: "❌ Email already used"
+                });
+            }
+            updateData.email = email;
+        }
+
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            updateData.password = hashedPassword;
+        }
 
         const updatedUser = await User.findByIdAndUpdate(
-            req.params.id,
+            userId,
             updateData,
             { new: true }
         );
 
-        res.json({
+        res.status(200).json({
             ok: true,
             message: "✅ User updated",
-            updatedUser
+            user: {
+                id: updatedUser._id,
+                username: updatedUser.username,
+                email: updatedUser.email
+            }
         });
 
     } catch (error) {
         next(error);
     }
 }
-
 async function deleteUser(req, res) {
     try {
         const user = await User.findByIdAndDelete(req.params.id);
