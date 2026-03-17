@@ -1,5 +1,6 @@
 const Product = require("../models/Product");
 const slugify = require("../utils/slugify");
+const createAuditLog = require("../utils/createAuditLog");
 
 async function createProduct(req, res, next) {
     try {
@@ -57,30 +58,6 @@ async function getProducts(req, res, next) {
     }
 }
 
-async function getProductBySlug(req, res, next) {
-    try {
-
-        const { slug } = req.params;
-
-        const product = await Product.findOne({ slug });
-
-        if (!product) {
-            return res.status(404).json({
-                ok: false,
-                message: "❌ Product not found"
-            });
-        }
-
-        return res.status(200).json({
-            ok: true,
-            product
-        });
-
-    } catch (error) {
-        next(error);
-    }
-}
-
 async function getProductsByCategory(req, res, next) {
     try {
 
@@ -111,7 +88,7 @@ async function getProductsByCategory(req, res, next) {
 async function searchProducts(req, res, next) {
     try {
 
-        const { q } = req.query;
+        const { product } = req.query;
 
         if (!q) {
             return res.status(400).json({
@@ -122,10 +99,10 @@ async function searchProducts(req, res, next) {
 
         const products = await Product.find({
             $or: [
-                { name: { $regex: q, $options: "i" } },
-                { category: { $regex: q, $options: "i" } },
-                { brand: { $regex: q, $options: "i" } },
-                { description: { $regex: q, $options: "i" } }
+                { name: { $regex: product, $options: "i" } },
+                { category: { $regex: product, $options: "i" } },
+                { brand: { $regex: product, $options: "i" } },
+                { description: { $regex: product, $options: "i" } }
             ]
         });
 
@@ -147,10 +124,136 @@ async function searchProducts(req, res, next) {
     }
 }
 
+async function updateProduct(req, res, next) {
+    try {
+        const productId = req.params.id;
+
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({
+                ok: false,
+                message: "❌ Product not found"
+            });
+        }
+
+        const before = product.toObject();
+
+        const {
+            name,
+            description,
+            category,
+            brand,
+            price,
+            stock,
+            images,
+            attributes,
+            isActive
+        } = req.body;
+
+        const updateData = {};
+
+        if (name) {
+            const trimmedName = name.trim();
+            updateData.name = trimmedName;
+            updateData.slug = trimmedName.toLowerCase().replace(/\s+/g, "-");
+        }
+
+        if (description !== undefined) updateData.description = description;
+        if (category) updateData.category = category;
+        if (brand !== undefined) updateData.brand = brand;
+
+        if (price !== undefined) {
+            if (price < 0) {
+                return res.status(400).json({
+                    ok: false,
+                    message: "❌ Price cannot be negative"
+                });
+            }
+            updateData.price = price;
+        }
+
+        if (stock !== undefined) {
+            if (stock < 0) {
+                return res.status(400).json({
+                    ok: false,
+                    message: "❌ Stock cannot be negative"
+                });
+            }
+            updateData.stock = stock;
+        }
+
+        if (images) updateData.images = images;
+        if (attributes) updateData.attributes = attributes;
+        if (isActive !== undefined) updateData.isActive = isActive;
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            productId,
+            updateData,
+            { new: true }
+        );
+
+        await createAuditLog({
+            req,
+            action: "UPDATE_PRODUCT",
+            entityType: "Product",
+            entityId: productId,
+            before,
+            after: updatedProduct.toObject()
+        });
+
+        res.status(200).json({
+            ok: true,
+            message: "✅ Product updated",
+            product: updatedProduct
+        });
+
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function deleteProduct(req, res, next) {
+    try {
+        const productId = req.params.id;
+
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({
+                ok: false,
+                message: "❌ Product not found"
+            });
+        }
+
+        const before = product.toObject();
+
+        await Product.findByIdAndDelete(productId);
+
+        await createAuditLog({
+            req,
+            action: "DELETE_PRODUCT",
+            entityType: "Product",
+            entityId: productId,
+            before,
+            after: null
+        });
+
+        res.status(200).json({
+            ok: true,
+            message: "🗑️ Product deleted"
+        });
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     createProduct,
     getProducts,
-    getProductBySlug,
     searchProducts,
     getProductsByCategory,
+    updateProduct,
+    deleteProduct
 };

@@ -46,45 +46,6 @@ function verifyBody(requiredFields) {
   }
 }
 
-// async function isAdmin(req, res, next) {
-//   try {
-//     if (!req.user?.id) {
-//       return res.status(401).json({
-//         ok: false,
-//         message: "Unauthorized"
-//       });
-//     }
-
-//     const user = await User.findById(req.user.id).select("_id role");
-
-//     if (!user) {
-//       return res.status(401).json({
-//         ok: false,
-//         message: "User not found"
-//       });
-//     }
-
-//     if (user.role !== "admin") {
-//       return res.status(403).json({
-//         ok: false,
-//         message: "Forbidden"
-//       });
-//     }
-
-//     req.user = {
-//       id: user._id.toString(),
-//       role: user.role
-//     };
-
-//     next();
-//   } catch (error) {
-//     return res.status(500).json({
-//       ok: false,
-//       message: "Server error"
-//     });
-//   }
-// }
-
 function requireRole(...roles) {
   return async (req, res, next) => {
     try {
