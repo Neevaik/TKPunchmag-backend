@@ -74,6 +74,7 @@ async function login(req, res, next) {
             ok: true,
             message: "✅ User connected",
             id: user._id,
+            role: user.role,
             token,
         });
 
@@ -100,115 +101,111 @@ async function logout(req, res, next) {
 }
 
 async function updateUser(req, res, next) {
-  try {
-    const { username, email, password, role, isBlocked } = req.body;
-    const userId = req.params.id;
+    try {
+        const { username, email, password, role } = req.body;
+        const userId = req.params.id;
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        ok: false,
-        message: "❌ User not found"
-      });
-    }
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                ok: false,
+                message: "❌ User not found"
+            });
+        }
 
-    const before = {
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      isBlocked: user.isBlocked
-    };
+        const before = {
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            isBlocked: user.isBlocked
+        };
 
-    const updateData = {};
+        const updateData = {};
 
-    if (username) {
-      const trimmedUsername = username.trim();
+        if (username) {
+            const trimmedUsername = username.trim();
 
-      const existingUsername = await User.findOne({ username: trimmedUsername });
+            const existingUsername = await User.findOne({ username: trimmedUsername });
 
-      if (existingUsername && existingUsername._id.toString() !== userId) {
-        return res.status(409).json({
-          ok: false,
-          message: "❌ Username already used"
+            if (existingUsername && existingUsername._id.toString() !== userId) {
+                return res.status(409).json({
+                    ok: false,
+                    message: "❌ Username already used"
+                });
+            }
+
+            updateData.username = trimmedUsername;
+        }
+
+        if (email) {
+            const normalizedEmail = email.trim().toLowerCase();
+
+            const existingEmail = await User.findOne({ email: normalizedEmail });
+
+            if (existingEmail && existingEmail._id.toString() !== userId) {
+                return res.status(409).json({
+                    ok: false,
+                    message: "❌ Email already used"
+                });
+            }
+
+            updateData.email = normalizedEmail;
+        }
+
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            updateData.password = hashedPassword;
+        }
+
+        if (typeof role !== "undefined") {
+            updateData.role = role;
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        const after = {
+            username: updatedUser.username,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            isBlocked: updatedUser.isBlocked
+        };
+
+        const hasChanged = JSON.stringify(before) !== JSON.stringify(after);
+
+        if (hasChanged) {
+            await createAuditLog({
+                req,
+                action: "USER_UPDATED",
+                entityType: "User",
+                entityId: updatedUser._id,
+                before,
+                after,
+                source: "api",
+                reason: "admin user update"
+            });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            message: "✅ User updated",
+            user: {
+                id: updatedUser._id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                isBlocked: updatedUser.isBlocked
+            }
         });
-      }
-
-      updateData.username = trimmedUsername;
+    } catch (error) {
+        next(error);
     }
-
-    if (email) {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      const existingEmail = await User.findOne({ email: normalizedEmail });
-
-      if (existingEmail && existingEmail._id.toString() !== userId) {
-        return res.status(409).json({
-          ok: false,
-          message: "❌ Email already used"
-        });
-      }
-
-      updateData.email = normalizedEmail;
-    }
-
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateData.password = hashedPassword;
-    }
-
-    if (typeof role !== "undefined") {
-      updateData.role = role;
-    }
-
-    if (typeof isBlocked !== "undefined") {
-      updateData.isBlocked = isBlocked;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    const after = {
-      username: updatedUser.username,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      isBlocked: updatedUser.isBlocked
-    };
-
-    const hasChanged = JSON.stringify(before) !== JSON.stringify(after);
-
-    if (hasChanged) {
-      await createAuditLog({
-        req,
-        action: "USER_UPDATED",
-        entityType: "User",
-        entityId: updatedUser._id,
-        before,
-        after,
-        source: "api",
-        reason: "admin user update"
-      });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      message: "✅ User updated",
-      user: {
-        id: updatedUser._id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        isBlocked: updatedUser.isBlocked
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
 }
 
-async function deleteUser(req, res) {
+async function deleteUser(req, res, next) {
     try {
         const user = await User.findByIdAndDelete(req.params.id);
 
@@ -218,10 +215,29 @@ async function deleteUser(req, res) {
                 message: "❌ User not found"
             });
         }
-        res.json({
+
+        const before = {
+            username: user.username,
+            email: user.email,
+            role: user.role
+        };
+
+        await createAuditLog({
+            req,
+            action: "USER_DELETED",
+            entityType: "User",
+            entityId: user._id,
+            before,
+            after: null,
+            source: "api",
+            reason: "admin user deletion"
+        });
+
+        return res.json({
             ok: true,
             message: "✅ User deleted"
-        })
+        });
+
     } catch (error) {
         next(error);
     }

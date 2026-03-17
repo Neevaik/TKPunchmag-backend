@@ -12,8 +12,7 @@ async function createAuditLog({
 }) {
   try {
     await AuditLog.create({
-      actorId: req.user?._id || null,
-      actorEmail: req.user?.email || null,
+      actorId: req.user?.id || null,
       actorRole: req.user?.role || null,
 
       action,

@@ -15,7 +15,6 @@ function verifyToken(req, res, next) {
 
     req.user = {
       id: decoded.id,
-      role: decoded.role
     };
 
     next();
@@ -47,11 +46,84 @@ function verifyBody(requiredFields) {
   }
 }
 
-function isAdmin(req, res, next) {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Forbidden" })
-  }
-  next()
+// async function isAdmin(req, res, next) {
+//   try {
+//     if (!req.user?.id) {
+//       return res.status(401).json({
+//         ok: false,
+//         message: "Unauthorized"
+//       });
+//     }
+
+//     const user = await User.findById(req.user.id).select("_id role");
+
+//     if (!user) {
+//       return res.status(401).json({
+//         ok: false,
+//         message: "User not found"
+//       });
+//     }
+
+//     if (user.role !== "admin") {
+//       return res.status(403).json({
+//         ok: false,
+//         message: "Forbidden"
+//       });
+//     }
+
+//     req.user = {
+//       id: user._id.toString(),
+//       role: user.role
+//     };
+
+//     next();
+//   } catch (error) {
+//     return res.status(500).json({
+//       ok: false,
+//       message: "Server error"
+//     });
+//   }
+// }
+
+function requireRole(...roles) {
+  return async (req, res, next) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({
+          ok: false,
+          message: "Unauthorized"
+        });
+      }
+
+      const user = await User.findById(req.user.id).select("_id role");
+
+      if (!user) {
+        return res.status(401).json({
+          ok: false,
+          message: "User not found"
+        });
+      }
+
+      if (!roles.includes(user.role)) {
+        return res.status(403).json({
+          ok: false,
+          message: "Forbidden"
+        });
+      }
+
+      req.user = {
+        id: user._id.toString(),
+        role: user.role
+      };
+
+      next();
+    } catch (error) {
+      return res.status(500).json({
+        ok: false,
+        message: "Server error"
+      });
+    }
+  };
 }
 
-module.exports = { verifyBody, verifyToken, isAdmin };
+module.exports = { verifyBody, verifyToken, requireRole };

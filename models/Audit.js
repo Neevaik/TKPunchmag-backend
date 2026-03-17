@@ -8,12 +8,6 @@ const auditLogSchema = new mongoose.Schema(
       default: null
     },
 
-    actorEmail: {
-      type: String,
-      default: null,
-      trim: true
-    },
-
     actorRole: {
       type: String,
       default: null,
