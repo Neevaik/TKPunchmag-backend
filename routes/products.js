@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { requireRole, verifyToken } = require("../middlewares/verifications");
 const {
     createProduct,
     getProducts,
@@ -13,7 +14,7 @@ router.post("/create", createProduct);
 router.get("/", getProducts);
 router.get("/search", searchProducts);
 router.get("/category/:category", getProductsByCategory);
-router.put("/:id", updateProduct);
-router.delete("/:id", deleteProduct);
+router.put("/:id", verifyToken, requireRole("admin"), updateProduct);
+router.delete("/:id", verifyToken, requireRole("admin"), deleteProduct);
 
 module.exports = router;

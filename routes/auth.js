@@ -5,13 +5,9 @@ const { verifyBody, verifyToken, requireRole } = require("../middlewares/verific
 const { signup, login, logout, updateUser, deleteUser } = require("../controllers/authController");
 
 router.post("/login", verifyBody(["username", "password"]), login)
-
 router.post("/signup", verifyBody(["username", "password", "email"]), signup)
-
 router.post("/logout", logout)
-
 router.put("/:id", verifyToken, requireRole("admin"), updateUser);
-
 router.delete("/:id", verifyToken, requireRole("admin"), deleteUser);
 
 module.exports = router;
