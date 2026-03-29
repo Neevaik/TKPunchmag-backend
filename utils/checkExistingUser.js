@@ -1,3 +1,5 @@
+const User = require("../models/User");
+
 async function verifyExistingUser(req, res, next) {
     try {
         let { username } = req.body;
