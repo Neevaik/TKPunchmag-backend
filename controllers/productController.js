@@ -87,8 +87,7 @@ async function getProductsByCategory(req, res, next) {
 
 async function searchProducts(req, res, next) {
     try {
-
-        const { product } = req.query;
+        const { q } = req.query;
 
         if (!q) {
             return res.status(400).json({
@@ -99,21 +98,21 @@ async function searchProducts(req, res, next) {
 
         const products = await Product.find({
             $or: [
-                { name: { $regex: product, $options: "i" } },
-                { category: { $regex: product, $options: "i" } },
-                { brand: { $regex: product, $options: "i" } },
-                { description: { $regex: product, $options: "i" } }
+                { name: { $regex: q, $options: "i" } },
+                { category: { $regex: q, $options: "i" } },
+                { brand: { $regex: q, $options: "i" } },
+                { description: { $regex: q, $options: "i" } }
             ]
         });
 
         if (products.length === 0) {
-            res.status(400).json({
+            return res.status(404).json({
                 ok: false,
-                message: "product not found",
+                message: "No products found"
             });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             ok: true,
             count: products.length,
             products
