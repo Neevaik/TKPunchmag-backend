@@ -100,6 +100,35 @@ async function logout(req, res, next) {
     }
 }
 
+async function getToken(req, res, next) {
+    try {
+        const { username } = req.body;
+        console.log("username : ",username)
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ ok: false, message: "User not found" });
+        }
+
+        const token = await generateToken(user);
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            sameSite: "strict",
+            maxAge: 5 * 60 * 1000,
+        });
+
+        return res.status(200).json({
+            ok: true,
+            username: user.username,
+            role: user.role,
+            token
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+
 async function updateUser(req, res, next) {
     try {
         const { username, email, password, role } = req.body;
@@ -243,4 +272,4 @@ async function deleteUser(req, res, next) {
     }
 }
 
-module.exports = { signup, login, logout, updateUser, deleteUser };
+module.exports = { signup, login, logout, getToken, updateUser, deleteUser };
