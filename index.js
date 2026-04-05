@@ -8,6 +8,7 @@ const connectDB = require("./config/database");
 const usersRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
+const orderRoutes = require("./routes/order");
 const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
@@ -19,6 +20,7 @@ app.use(cors());
 app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
 app.use("/cart", cartRoutes);
+app.use("/order", orderRoutes);
 app.use(errorHandler);
 connectDB();
 
