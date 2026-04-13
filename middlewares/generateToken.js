@@ -6,7 +6,7 @@ async function generateToken(user) {
         role: user.role,
     },
         process.env.JWT_TOKEN_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "5m" }
     );
 
     return token;
