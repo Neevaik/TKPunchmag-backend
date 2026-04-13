@@ -23,7 +23,7 @@ async function signup(req, res, next) {
         res.cookie("token", token, {
             httpOnly: true,
             sameSite: "strict",
-            maxAge: 5 * 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000,
         });
 
         res.status(201).json({
@@ -67,7 +67,7 @@ async function login(req, res, next) {
         res.cookie("token", token, {
             httpOnly: true,
             sameSite: "strict",
-            maxAge: 5 * 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000,
         });
 
         res.status(200).json({
@@ -103,7 +103,6 @@ async function logout(req, res, next) {
 async function getToken(req, res, next) {
     try {
         const { username } = req.body;
-        console.log("username : ",username)
         const user = await User.findOne({ username });
         if (!user) {
             return res.status(404).json({ ok: false, message: "User not found" });

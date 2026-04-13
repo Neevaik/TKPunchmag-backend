@@ -57,13 +57,6 @@ async function addToCart(req, res, next) {
             });
         }
 
-        if (!product.isActive) {
-            return res.status(400).json({
-                ok: false,
-                message: "❌ Product is not available"
-            });
-        }
-
         if (product.stock < quantity) {
             return res.status(400).json({
                 ok: false,
