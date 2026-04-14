@@ -64,10 +64,9 @@ async function getProducts(req, res, next) {
             maxPrice,
         } = req.query;
 
-        const pageNum  = Math.max(1, parseInt(page));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-        const skip     = (pageNum - 1) * limitNum;
-
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 12));
+        const skip = (pageNum - 1) * limitNum;
         const filter = { isActive: true };
 
         if (category) {
@@ -80,9 +79,9 @@ async function getProducts(req, res, next) {
 
         if (search) {
             filter.$or = [
-                { name:        { $regex: search, $options: "i" } },
+                { name: { $regex: search, $options: "i" } },
                 { description: { $regex: search, $options: "i" } },
-                { brand:       { $regex: search, $options: "i" } },
+                { brand: { $regex: search, $options: "i" } },
             ];
         }
 
@@ -93,12 +92,12 @@ async function getProducts(req, res, next) {
         }
 
         const sortMap = {
-            newest:     { createdAt: -1 },
-            oldest:     { createdAt:  1 },
-            price_asc:  { price:      1 },
-            price_desc: { price:     -1 },
-            name_asc:   { name:       1 },
-            name_desc:  { name:      -1 },
+            newest: { createdAt: -1 },
+            oldest: { createdAt: 1 },
+            price_asc: { price: 1 },
+            price_desc: { price: -1 },
+            name_asc: { name: 1 },
+            name_desc: { name: -1 },
         };
         const sortQuery = sortMap[sort] ?? sortMap.newest;
 
@@ -113,11 +112,11 @@ async function getProducts(req, res, next) {
             ok: true,
             pagination: {
                 total,
-                page:       pageNum,
-                limit:      limitNum,
+                page: pageNum,
+                limit: limitNum,
                 totalPages,
-                hasNext:    pageNum < totalPages,
-                hasPrev:    pageNum > 1,
+                hasNext: pageNum < totalPages,
+                hasPrev: pageNum > 1,
             },
             products,
         });

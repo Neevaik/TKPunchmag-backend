@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
@@ -127,28 +128,21 @@ async function getOrderById(req, res, next) {
             .populate("user", "username email");
 
         if (!order) {
-            return res.status(404).json({
-                ok: false,
-                message: "❌ Order not found"
-            });
+            return res.status(404).json({ ok: false, message: "❌ Order not found" });
         }
 
-        // Un customer ne peut voir que ses propres commandes
-        if (
-            order.user._id.toString() !== req.user.id &&
-            req.user.role !== "admin" &&
-            req.user.role !== "logistics"
-        ) {
-            return res.status(403).json({
-                ok: false,
-                message: "❌ Forbidden"
-            });
+        const User = require("../models/User");
+        const actor = await User.findById(req.user.id).select("role");
+        const actorRole = actor?.role;
+
+        const isOwner = order.user?._id.toString() === req.user.id;
+        const isPrivileged = actorRole === "admin" || actorRole === "logistics";
+
+        if (!isOwner && !isPrivileged) {
+            return res.status(403).json({ ok: false, message: "❌ Forbidden" });
         }
 
-        return res.status(200).json({
-            ok: true,
-            order
-        });
+        return res.status(200).json({ ok: true, order });
 
     } catch (error) {
         next(error);
