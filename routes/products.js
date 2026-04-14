@@ -5,7 +5,6 @@ const {
     createProduct,
     getProducts,
     searchProducts,
-    getProductsByCategory,
     updateProduct,
     deleteProduct,
 } = require("../controllers/productController");
@@ -13,7 +12,6 @@ const {
 router.post("/create", verifyToken, requireRole("admin"), createProduct);
 router.get("/", getProducts);
 router.get("/search", searchProducts);
-router.get("/category/:category", getProductsByCategory);
 router.put("/:id", verifyToken, requireRole("admin"), updateProduct);
 router.delete("/:id", verifyToken, requireRole("admin"), deleteProduct);
 

@@ -235,7 +235,6 @@ module.exports = {
     createProduct,
     getProducts,
     searchProducts,
-    getProductsByCategory,
     updateProduct,
     deleteProduct
 };
