@@ -53,52 +53,73 @@ async function createProduct(req, res, next) {
 
 async function getProducts(req, res, next) {
     try {
+        const {
+            page = 1,
+            limit = 12,
+            category,
+            brand,
+            search,
+            sort = "newest",
+            minPrice,
+            maxPrice,
+        } = req.query;
 
-        const products = await Product.find();
+        const pageNum  = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+        const skip     = (pageNum - 1) * limitNum;
+
+        const filter = { isActive: true };
+
+        if (category) {
+            filter.category = { $regex: category, $options: "i" };
+        }
+
+        if (brand) {
+            filter.brand = { $regex: brand, $options: "i" };
+        }
+
+        if (search) {
+            filter.$or = [
+                { name:        { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+                { brand:       { $regex: search, $options: "i" } },
+            ];
+        }
+
+        if (minPrice !== undefined || maxPrice !== undefined) {
+            filter.price = {};
+            if (minPrice !== undefined) filter.price.$gte = parseFloat(minPrice);
+            if (maxPrice !== undefined) filter.price.$lte = parseFloat(maxPrice);
+        }
+
+        const sortMap = {
+            newest:     { createdAt: -1 },
+            oldest:     { createdAt:  1 },
+            price_asc:  { price:      1 },
+            price_desc: { price:     -1 },
+            name_asc:   { name:       1 },
+            name_desc:  { name:      -1 },
+        };
+        const sortQuery = sortMap[sort] ?? sortMap.newest;
+
+        const [products, total] = await Promise.all([
+            Product.find(filter).sort(sortQuery).skip(skip).limit(limitNum),
+            Product.countDocuments(filter),
+        ]);
+
+        const totalPages = Math.ceil(total / limitNum);
 
         return res.status(200).json({
             ok: true,
-            count: products.length,
-            products
-        });
-
-    } catch (error) {
-        next(error);
-    }
-}
-
-
-async function searchProducts(req, res, next) {
-    try {
-        const { q } = req.query;
-
-        if (!q) {
-            return res.status(400).json({
-                ok: false,
-                message: "Search query is required"
-            });
-        }
-
-        const products = await Product.find({
-            $or: [
-                { name: { $regex: q, $options: "i" } },
-                { category: { $regex: q, $options: "i" } },
-                { brand: { $regex: q, $options: "i" } },
-                { description: { $regex: q, $options: "i" } }
-            ]
-        });
-
-        if (products.length === 0) {
-            return res.status(404).json({
-                ok: false,
-                message: "No products found"
-            });
-        }
-
-        return res.status(200).json({
-            ok: true,
-            count: products.length,
-            products
+            pagination: {
+                total,
+                page:       pageNum,
+                limit:      limitNum,
+                totalPages,
+                hasNext:    pageNum < totalPages,
+                hasPrev:    pageNum > 1,
+            },
+            products,
         });
 
     } catch (error) {
@@ -234,7 +255,6 @@ async function deleteProduct(req, res, next) {
 module.exports = {
     createProduct,
     getProducts,
-    searchProducts,
     updateProduct,
     deleteProduct
 };
