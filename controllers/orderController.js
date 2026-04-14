@@ -4,20 +4,27 @@ const Product = require("../models/Product");
 const createAuditLog = require("../utils/createAuditLog");
 
 async function checkout(req, res, next) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const cart = await Cart.findOne({ user: req.user.id })
-            .populate("items.product", "name price stock isActive");
+            .populate("items.product", "name price stock isActive")
+            .session(session);
 
         if (!cart || cart.items.length === 0) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({
                 ok: false,
                 message: "❌ Cart is empty"
             });
         }
 
-        // Vérification stock pour chaque item
         for (const item of cart.items) {
             if (!item.product.isActive) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(400).json({
                     ok: false,
                     message: `❌ Product "${item.product.name}" is no longer available`
@@ -25,6 +32,8 @@ async function checkout(req, res, next) {
             }
 
             if (item.product.stock < item.quantity) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(400).json({
                     ok: false,
                     message: `❌ Not enough stock for "${item.product.name}". Available: ${item.product.stock}`
@@ -32,7 +41,6 @@ async function checkout(req, res, next) {
             }
         }
 
-        // Snapshot des produits au moment de l'achat
         const products = cart.items.map(item => ({
             product: item.product._id,
             name: item.product.name,
@@ -44,14 +52,14 @@ async function checkout(req, res, next) {
             products.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
         );
 
-        // Décrémentation du stock
         for (const item of cart.items) {
-            await Product.findByIdAndUpdate(item.product._id, {
-                $inc: { stock: -item.quantity }
-            });
+            await Product.findByIdAndUpdate(
+                item.product._id,
+                { $inc: { stock: -item.quantity } },
+                { session }
+            );
         }
 
-        // Création de la commande
         const order = new Order({
             user: req.user.id,
             products,
@@ -59,11 +67,13 @@ async function checkout(req, res, next) {
             status: "pending"
         });
 
-        await order.save();
+        await order.save({ session });
 
-        // Vider le cart
         cart.items = [];
-        await cart.save();
+        await cart.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         await createAuditLog({
             req,
@@ -81,6 +91,8 @@ async function checkout(req, res, next) {
         });
 
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         next(error);
     }
 }
