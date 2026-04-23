@@ -243,7 +243,7 @@ async function deleteProduct(req, res, next) {
 
         res.status(200).json({
             ok: true,
-            message: "🗑️ Product deleted"
+            message: "Product deleted"
         });
 
     } catch (error) {
