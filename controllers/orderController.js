@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
+const stripe = require("../config/stripe");
 const createAuditLog = require("../utils/createAuditLog");
 
 async function checkout(req, res, next) {
@@ -53,6 +54,14 @@ async function checkout(req, res, next) {
             products.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
         );
 
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(totalPrice * 100),
+            currency: "eur",
+            metadata: {
+                userId: req.user.id,
+            }
+        });
+
         for (const item of cart.items) {
             await Product.findByIdAndUpdate(
                 item.product._id,
@@ -65,7 +74,8 @@ async function checkout(req, res, next) {
             user: req.user.id,
             products,
             totalPrice,
-            status: "pending"
+            status: "pending",
+            paymentIntentId : paymentIntent.id
         });
 
         await order.save({ session });
