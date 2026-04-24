@@ -12,7 +12,7 @@ const {
 router.post("/checkout", verifyToken, checkout);
 router.get("/my-orders", verifyToken, getMyOrders);
 router.get("/all", verifyToken, requireRole("admin", "logistics"), getAllOrders);
-router.get("/:id", verifyToken, getOrderById);
+router.get("/:id", verifyToken, requireRole("admin", "logistics"), getOrderById);
 router.put("/:id/status", verifyToken, requireRole("admin", "logistics"), updateOrderStatus);
 
 module.exports = router;

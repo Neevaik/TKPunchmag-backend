@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
-const stripe = require("../config/stripe");
 const createAuditLog = require("../utils/createAuditLog");
 
 async function checkout(req, res, next) {
@@ -17,10 +16,7 @@ async function checkout(req, res, next) {
         if (!cart || cart.items.length === 0) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({
-                ok: false,
-                message: "❌ Cart is empty"
-            });
+            return res.status(400).json({ ok: false, message: "❌ Cart is empty" });
         }
 
         for (const item of cart.items) {
@@ -32,7 +28,6 @@ async function checkout(req, res, next) {
                     message: `❌ Product "${item.product.name}" is no longer available`
                 });
             }
-
             if (item.product.stock < item.quantity) {
                 await session.abortTransaction();
                 session.endSession();
@@ -54,14 +49,6 @@ async function checkout(req, res, next) {
             products.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
         );
 
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(totalPrice * 100),
-            currency: "eur",
-            metadata: {
-                userId: req.user.id,
-            }
-        });
-
         for (const item of cart.items) {
             await Product.findByIdAndUpdate(
                 item.product._id,
@@ -74,8 +61,7 @@ async function checkout(req, res, next) {
             user: req.user.id,
             products,
             totalPrice,
-            status: "pending",
-            paymentIntentId : paymentIntent.id
+            status: "pending"
         });
 
         await order.save({ session });
@@ -110,16 +96,7 @@ async function checkout(req, res, next) {
 
 async function getMyOrders(req, res, next) {
     try {
-        const orders = await Order.find({ user: req.user.id })
-            .sort({ createdAt: -1 });
-
-        if (orders.length === 0) {
-            return res.status(200).json({
-                ok: true,
-                message: "No orders found",
-                orders: []
-            });
-        }
+        const orders = await Order.find({ user: req.user.id }).sort({ createdAt: -1 });
 
         return res.status(200).json({
             ok: true,
@@ -134,22 +111,10 @@ async function getMyOrders(req, res, next) {
 
 async function getOrderById(req, res, next) {
     try {
-        const order = await Order.findById(req.params.id)
-            .populate("user", "username email");
+        const order = await Order.findById(req.params.id).populate("user", "username email");
 
         if (!order) {
             return res.status(404).json({ ok: false, message: "❌ Order not found" });
-        }
-
-        const User = require("../models/User");
-        const actor = await User.findById(req.user.id).select("role");
-        const actorRole = actor?.role;
-
-        const isOwner = order.user?._id.toString() === req.user.id;
-        const isPrivileged = actorRole === "admin" || actorRole === "logistics";
-
-        if (!isOwner && !isPrivileged) {
-            return res.status(403).json({ ok: false, message: "❌ Forbidden" });
         }
 
         return res.status(200).json({ ok: true, order });
@@ -162,18 +127,13 @@ async function getOrderById(req, res, next) {
 async function getAllOrders(req, res, next) {
     try {
         const { status } = req.query;
-
         const filter = status ? { status } : {};
 
         const orders = await Order.find(filter)
             .populate("user", "username email")
             .sort({ createdAt: -1 });
 
-        return res.status(200).json({
-            ok: true,
-            count: orders.length,
-            orders
-        });
+        return res.status(200).json({ ok: true, count: orders.length, orders });
 
     } catch (error) {
         next(error);
@@ -183,8 +143,8 @@ async function getAllOrders(req, res, next) {
 async function updateOrderStatus(req, res, next) {
     try {
         const { status } = req.body;
+        const validStatuses = ["pending", "paid", "shipped", "delivered", "cancelled"];
 
-        const validStatuses = ["pending", "paid", "shipped", "delivered"];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
                 ok: false,
@@ -194,14 +154,10 @@ async function updateOrderStatus(req, res, next) {
 
         const order = await Order.findById(req.params.id);
         if (!order) {
-            return res.status(404).json({
-                ok: false,
-                message: "❌ Order not found"
-            });
+            return res.status(404).json({ ok: false, message: "❌ Order not found" });
         }
 
         const before = order.toObject();
-
         order.status = status;
         await order.save();
 
@@ -225,10 +181,4 @@ async function updateOrderStatus(req, res, next) {
     }
 }
 
-module.exports = {
-    checkout,
-    getMyOrders,
-    getOrderById,
-    getAllOrders,
-    updateOrderStatus
-};
+module.exports = { checkout, getMyOrders, getOrderById, getAllOrders, updateOrderStatus };
