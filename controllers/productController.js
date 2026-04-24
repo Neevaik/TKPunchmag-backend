@@ -15,10 +15,40 @@ async function createProduct(req, res, next) {
             attributes
         } = req.body;
 
-        const slug = slugify(name);
+        const errors = [];
+
+        if (!name || typeof name !== "string" || !name.trim()) {
+            errors.push("name is required and must be a non-empty string");
+        }
+
+        if (price === undefined || price === null) {
+            errors.push("price is required");
+        } else if (typeof price !== "number" || isNaN(price)) {
+            errors.push("price must be a number");
+        } else if (price < 0) {
+            errors.push("price cannot be negative");
+        }
+
+        if (stock !== undefined && stock !== null) {
+            if (typeof stock !== "number" || isNaN(stock) || !Number.isInteger(stock)) {
+                errors.push("stock must be a positive integer");
+            } else if (stock < 0) {
+                errors.push("stock cannot be negative");
+            }
+        }
+
+        if (errors.length > 0) {
+            return res.status(400).json({
+                ok: false,
+                message: "❌ Validation failed",
+                errors
+            });
+        }
+
+        const slug = slugify(name.trim());
 
         const newProduct = new Product({
-            name,
+            name: name.trim(),
             slug,
             description,
             category,

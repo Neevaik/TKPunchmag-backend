@@ -34,15 +34,36 @@ function verifyToken(req, res, next) {
 
 function verifyBody(requiredFields) {
   return (req, res, next) => {
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    if (missingFields.length > 0) {
+    const errors = [];
+
+    for (const field of requiredFields) {
+      const value = req.body[field];
+
+      if (value === undefined || value === null) {
+        errors.push(`"${field}" is required`);
+        continue;
+      }
+
+      if (typeof value === "string" && !value.trim()) {
+        errors.push(`"${field}" cannot be empty`);
+        continue;
+      }
+
+      if (typeof value === "number" && isNaN(value)) {
+        errors.push(`"${field}" must be a valid number`);
+      }
+    }
+
+    if (errors.length > 0) {
       return res.status(400).json({
         ok: false,
-        message: `Missing field : ${missingFields.join(", ")}`
+        message: "❌ Validation failed",
+        errors
       });
     }
+
     next();
-  }
+  };
 }
 
 function requireRole(...roles) {
