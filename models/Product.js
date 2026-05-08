@@ -39,6 +39,11 @@ const productSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
+    rating: {
+        type: Number,
+        min: 0,
+        default: 0,
+    },
     attributes: {
         type: Map,
         of: mongoose.Schema.Types.Mixed,
