@@ -156,6 +156,23 @@ async function getProducts(req, res, next) {
     }
 }
 
+async function getTopRatedProducts(req, res, next) {
+    try {
+        const topProducts = await Product.find({ isActive: true })
+            .sort({ rating: -1 })
+            .limit(4);
+
+        return res.status(200).json({
+            ok: true,
+            count: topProducts.length,
+            topProducts
+        });
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 async function updateProduct(req, res, next) {
     try {
         const productId = req.params.id;
@@ -285,5 +302,6 @@ module.exports = {
     createProduct,
     getProducts,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    getTopRatedProducts,
 };
