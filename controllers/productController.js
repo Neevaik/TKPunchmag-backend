@@ -1,6 +1,8 @@
 const Product = require("../models/Product");
 const slugify = require("../utils/slugify");
 const createAuditLog = require("../utils/createAuditLog");
+const fs = require("fs");
+const cloudinary = require("../config/cloudinary");
 
 async function createProduct(req, res, next) {
     try {
@@ -173,6 +175,69 @@ async function getTopRatedProducts(req, res, next) {
     }
 }
 
+async function uploadImage(req, res, next) {
+    try {
+        const { type, category, productSlug } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({
+                ok: false,
+                message: "No file uploaded",
+            });
+        }
+
+        const folderMap = {
+            user: "tkpunchmag/users",
+            background: "tkpunchmag/ui/backgrounds",
+            banner: "tkpunchmag/banners",
+        };
+
+        let folder = "tkpunchmag/misc";
+
+        if (type === "product") {
+
+            if (!category || !productSlug) {
+                fs.unlinkSync(req.file.path);
+
+                return res.status(400).json({
+                    ok: false,
+                    message:
+                        "category and productSlug are required for product uploads",
+                });
+            }
+
+            folder = `tkpunchmag/products/${category}/${productSlug}`;
+        }
+
+        else if (folderMap[type]) {
+            folder = folderMap[type];
+        }
+
+        const result = await cloudinary.uploader.upload(req.file.path, {
+            folder,
+        });
+
+        fs.unlinkSync(req.file.path);
+
+        return res.status(200).json({
+            ok: true,
+            message: "Image uploaded successfully",
+            image: {
+                public_id: result.public_id,
+                url: result.secure_url,
+            },
+        });
+
+    } catch (error) {
+
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+
+        next(error);
+    }
+}
+
 async function updateProduct(req, res, next) {
     try {
         const productId = req.params.id;
@@ -304,4 +369,5 @@ module.exports = {
     updateProduct,
     deleteProduct,
     getTopRatedProducts,
+    uploadImage,
 };

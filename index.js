@@ -1,20 +1,18 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const connectDB = require("./config/database");
+const errorHandler = require("./middlewares/errorHandler");
 
 require("dotenv").config();
 
-const connectDB = require("./config/database");
 const usersRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
 const orderRoutes = require("./routes/order");
 const paymentRoutes = require("./routes/payment");
-const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
-
-app.use("/payment", paymentRoutes);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -27,6 +25,7 @@ app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
+app.use("/payment", paymentRoutes);
 app.use(errorHandler);
 
 connectDB();
