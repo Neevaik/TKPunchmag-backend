@@ -180,6 +180,27 @@ async function getProductById(req, res, next) {
     }
 }
 
+async function getByCategory(req, res, next) {
+    try {
+        const { category } = req.params;
+
+        const products = await Product.find({ category });
+
+        if (!products || products.length === 0) {
+            return res.status(404).json({
+                message: "Aucun produit trouvé pour cette catégorie",
+            });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            products
+        })
+    } catch (error) {
+        next(error);
+    }
+}
+
 async function getTopRatedProducts(req, res, next) {
     try {
         const topProducts = await Product.find({ isActive: true })
@@ -393,4 +414,5 @@ module.exports = {
     getTopRatedProducts,
     uploadImage,
     getProductById,
+    getByCategory,
 };
