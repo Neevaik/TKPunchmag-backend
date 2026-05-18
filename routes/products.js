@@ -11,10 +11,12 @@ const {
     deleteProduct,
     getTopRatedProducts,
     uploadImage,
+    getProductById,
 } = require("../controllers/productController");
 
 router.get("/", getProducts);
 router.get("/top-rated", getTopRatedProducts);
+router.get("/:id", getProductById);
 
 router.post("/create", verifyToken, requireRole("admin"), createProduct);
 router.post("/upload-pictures", verifyToken, requireRole("admin"), upload.single("file"), uploadImage);

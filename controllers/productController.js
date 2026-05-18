@@ -158,6 +158,28 @@ async function getProducts(req, res, next) {
     }
 }
 
+async function getProductById(req, res, next) {
+    try {
+        const { id } = req.params;
+
+        const product = await Product.findById(id);
+
+        if (!product) {
+            return res.status(404).json({
+                message: "Produit introuvable",
+            });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            product
+        })
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 async function getTopRatedProducts(req, res, next) {
     try {
         const topProducts = await Product.find({ isActive: true })
@@ -370,4 +392,5 @@ module.exports = {
     deleteProduct,
     getTopRatedProducts,
     uploadImage,
+    getProductById,
 };
