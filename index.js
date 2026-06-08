@@ -14,6 +14,8 @@ const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
+app.use("/payment", paymentRoutes);
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
@@ -25,7 +27,6 @@ app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
-app.use("/payment", paymentRoutes);
 app.use(errorHandler);
 
 connectDB();
