@@ -14,7 +14,9 @@ const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
-app.use("/payment", paymentRoutes);
+connectDB();
+
+app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -27,9 +29,13 @@ app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
+app.use("/payment", paymentRoutes);
+
 app.use(errorHandler);
 
-connectDB();
+app.get("/", (req, res) => {
+    res.send("API running");
+});
 
 app.listen(process.env.PORT || 3000, () => {
     console.log(`✅ Server on port : ${process.env.PORT}`);

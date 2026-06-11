@@ -95,13 +95,14 @@ async function updateOrderByPaymentIntent(paymentIntentId, newStatus, action, re
     }
 
     const previousStatus = order.status;
+
     if (previousStatus === newStatus) return;
 
     order.status = newStatus;
     await order.save();
 
     await createAuditLog({
-        req,
+        req: req || { user: "stripe-webhook" }, // ⚠️ safe fallback
         action,
         entityType: "Order",
         entityId: order._id,
@@ -123,7 +124,10 @@ async function handleWebhook(req, res) {
         );
     } catch (error) {
         console.error("❌ Webhook signature invalid:", error.message);
-        return res.status(400).json({ message: `Webhook error: ${error.message}` });
+        return res.status(400).json({
+            ok: false,
+            message: `Webhook error: ${error.message}`
+        });
     }
 
     try {
@@ -131,34 +135,27 @@ async function handleWebhook(req, res) {
 
             case "payment_intent.succeeded": {
                 const paymentIntent = event.data.object;
+
                 await updateOrderByPaymentIntent(
                     paymentIntent.id,
                     "paid",
                     "PAYMENT_SUCCEEDED",
-                    req
+                    null // ⚠️ important: pas de req dans webhook
                 );
+
                 break;
             }
 
             case "payment_intent.payment_failed": {
                 const paymentIntent = event.data.object;
+
                 await updateOrderByPaymentIntent(
                     paymentIntent.id,
                     "cancelled",
                     "PAYMENT_FAILED",
-                    req
+                    null
                 );
-                break;
-            }
 
-            case "checkout.session.completed": {
-                const session = event.data.object;
-                await updateOrderByPaymentIntent(
-                    session.payment_intent,
-                    "paid",
-                    "CHECKOUT_COMPLETED",
-                    req
-                );
                 break;
             }
 
@@ -170,7 +167,11 @@ async function handleWebhook(req, res) {
 
     } catch (error) {
         console.error("❌ Webhook handler error:", error.message);
-        return res.status(500).json({ message: "Internal server error" });
+
+        return res.status(500).json({
+            ok: false,
+            message: "Internal server error"
+        });
     }
 }
 
