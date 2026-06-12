@@ -22,7 +22,6 @@ async function createPaymentIntent(req, res, next) {
             });
         }
 
-        // Vérifier que la commande appartient bien à l'utilisateur connecté
         if (order.user.toString() !== req.user.id) {
             return res.status(403).json({
                 ok: false,
@@ -37,32 +36,38 @@ async function createPaymentIntent(req, res, next) {
             });
         }
 
-        // Si un PaymentIntent existe déjà, on le réutilise
-        if (order.paymentIntentId) {
-            const existingIntent = await stripe.paymentIntents.retrieve(order.paymentIntentId);
+        const amountInCents = Math.round(order.totalPrice * 100);
 
-            if (existingIntent.status === "requires_payment_method" || existingIntent.status === "requires_confirmation") {
-                return res.status(200).json({
-                    ok: true,
-                    clientSecret: existingIntent.client_secret,
-                    paymentIntentId: existingIntent.id
-                });
+        let paymentIntent;
+
+        if (order.paymentIntentId) {
+            try {
+                paymentIntent = await stripe.paymentIntents.retrieve(order.paymentIntentId);
+
+                if (paymentIntent.status === "succeeded") {
+                    return res.status(400).json({
+                        ok: false,
+                        message: "❌ Payment already completed"
+                    });
+                }
+            } catch (err) {
+                console.log("⚠️ Invalid old PaymentIntent, creating new one");
+                order.paymentIntentId = null;
             }
         }
 
-        // Stripe attend le montant en centimes (entier)
-        const amountInCents = Math.round(order.totalPrice * 100);
+        if (!paymentIntent || !paymentIntent.id) {
+            paymentIntent = await stripe.paymentIntents.create({
+                amount: amountInCents,
+                currency: "eur",
+                payment_method_types: ["card"],
+                metadata: {
+                    orderId: order._id.toString(),
+                    userId: req.user.id
+                }
+            });
+        }
 
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amountInCents,
-            currency: "eur",
-            metadata: {
-                orderId: order._id.toString(),
-                userId: req.user.id
-            }
-        });
-
-        // Sauvegarder le paymentIntentId sur la commande
         order.paymentIntentId = paymentIntent.id;
         await order.save();
 
@@ -72,17 +77,26 @@ async function createPaymentIntent(req, res, next) {
             entityType: "Order",
             entityId: order._id,
             before: null,
-            after: { paymentIntentId: paymentIntent.id, status: order.status }
+            after: {
+                paymentIntentId: paymentIntent.id,
+                status: order.status
+            }
         });
 
-        return res.status(201).json({
+        return res.status(200).json({
             ok: true,
             clientSecret: paymentIntent.client_secret,
-            paymentIntentId: paymentIntent.id
+            paymentIntentId: paymentIntent.id,
+            paymentMethod: "card"
         });
 
     } catch (error) {
-        next(error);
+        console.error("🔥 Stripe error:", error);
+        return res.status(500).json({
+            ok: false,
+            message: "❌ Internal server error",
+            error: error.message
+        });
     }
 }
 
@@ -102,7 +116,7 @@ async function updateOrderByPaymentIntent(paymentIntentId, newStatus, action, re
     await order.save();
 
     await createAuditLog({
-        req: req || { user: "stripe-webhook" }, // ⚠️ safe fallback
+        req: req || { user: "stripe-webhook" },
         action,
         entityType: "Order",
         entityId: order._id,
@@ -140,7 +154,7 @@ async function handleWebhook(req, res) {
                     paymentIntent.id,
                     "paid",
                     "PAYMENT_SUCCEEDED",
-                    null // ⚠️ important: pas de req dans webhook
+                    null
                 );
 
                 break;
@@ -175,4 +189,4 @@ async function handleWebhook(req, res) {
     }
 }
 
-module.exports = { createPaymentIntent, handleWebhook };
+module.exports = { createPaymentIntent, handleWebhook, updateOrderByPaymentIntent };
