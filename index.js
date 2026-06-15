@@ -14,25 +14,34 @@ const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
-connectDB();
-
+/* =========================
+   WEBHOOK STRIPE (IMPORTANT)
+========================= */
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
+/* =========================
+   MIDDLEWARES
+========================= */
 app.use(express.json());
 app.use(cookieParser());
+
 app.use(cors({
     origin: process.env.CLIENT_URL,
     credentials: true
 }));
 
+/* =========================
+   ROUTES
+========================= */
 app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
 app.use("/payment", paymentRoutes);
 
-app.use(errorHandler);
-
+/* =========================
+   HEALTH CHECK
+========================= */
 app.get("/", (req, res) => {
     res.send("API running");
 });
@@ -44,15 +53,37 @@ app.get("/health", (req, res) => {
     });
 });
 
-const PORT = process.env.PORT;
+/* =========================
+   ERROR HANDLER
+========================= */
+app.use(errorHandler);
 
-console.log("🔥 PORT FROM NORTHFLANK:", PORT);
+/* =========================
+   START SERVER (IMPORTANT)
+========================= */
+const startServer = async () => {
+    try {
+        console.log("🔥 STARTING BACKEND...");
 
-if (!PORT) {
-    console.error("❌ NO PORT PROVIDED BY NORTHFLANK");
-    process.exit(1);
-}
+        console.log("🔥 CONNECTING TO DATABASE...");
+        await connectDB();
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`✅ Server running on port ${PORT}`);
-});
+        const PORT = process.env.PORT;
+
+        console.log("🔥 NORTHFLANK PORT:", PORT);
+
+        if (!PORT) {
+            throw new Error("❌ PORT not provided by Northflank");
+        }
+
+        app.listen(PORT, "0.0.0.0", () => {
+            console.log(`✅ Server running on port ${PORT}`);
+        });
+
+    } catch (error) {
+        console.error("❌ FATAL ERROR:", error);
+        process.exit(1);
+    }
+};
+
+startServer();
