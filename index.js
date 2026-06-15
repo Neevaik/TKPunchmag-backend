@@ -14,6 +14,8 @@ const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
+connectDB();
+
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
@@ -35,24 +37,22 @@ app.get("/", (req, res) => {
     res.send("API running");
 });
 
-const startServer = async () => {
-    try {
-        console.log("🔥 BEFORE MONGO");
+app.get("/health", (req, res) => {
+    res.json({
+        ok: true,
+        message: "Backend is alive"
+    });
+});
 
-        await connectDB();
+const PORT = process.env.PORT;
 
-        console.log("🔥 AFTER MONGO");
+console.log("🔥 PORT FROM NORTHFLANK:", PORT);
 
-        const PORT = process.env.PORT || 5000;
+if (!PORT) {
+    console.error("❌ NO PORT PROVIDED BY NORTHFLANK");
+    process.exit(1);
+}
 
-        app.listen(PORT, () => {
-            console.log(`✅ Server running on port ${PORT}`);
-        });
-
-    } catch (error) {
-        console.error("❌ FATAL ERROR:", error);
-        process.exit(1);
-    }
-};
-
-startServer();
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`✅ Server running on port ${PORT}`);
+});
