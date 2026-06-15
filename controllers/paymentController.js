@@ -4,9 +4,14 @@ const createAuditLog = require("../utils/createAuditLog");
 
 async function createPaymentIntent(req, res, next) {
     try {
+        console.log("🟡 [CREATE PAYMENT INTENT] START");
+        console.log("📦 Body:", req.body);
+        console.log("👤 User:", req.user?.id);
+
         const { orderId } = req.body;
 
         if (!orderId) {
+            console.log("❌ Missing orderId");
             return res.status(400).json({
                 ok: false,
                 message: "❌ orderId is required"
@@ -16,13 +21,22 @@ async function createPaymentIntent(req, res, next) {
         const order = await Order.findById(orderId);
 
         if (!order) {
+            console.log("❌ Order not found:", orderId);
             return res.status(404).json({
                 ok: false,
                 message: "❌ Order not found"
             });
         }
 
+        console.log("🧾 Order found:", {
+            id: order._id,
+            status: order.status,
+            totalPrice: order.totalPrice,
+            paymentIntentId: order.paymentIntentId
+        });
+
         if (order.user.toString() !== req.user.id) {
+            console.log("⛔ Forbidden user mismatch");
             return res.status(403).json({
                 ok: false,
                 message: "❌ Forbidden"
@@ -30,6 +44,7 @@ async function createPaymentIntent(req, res, next) {
         }
 
         if (order.status !== "pending") {
+            console.log("⚠️ Order already processed:", order.status);
             return res.status(400).json({
                 ok: false,
                 message: `❌ Order is already ${order.status}`
@@ -38,25 +53,40 @@ async function createPaymentIntent(req, res, next) {
 
         const amountInCents = Math.round(order.totalPrice * 100);
 
+        console.log("💰 Amount in cents:", amountInCents);
+
         let paymentIntent;
 
+        // 🔁 REUSE PAYMENT INTENT IF EXISTS
         if (order.paymentIntentId) {
             try {
-                paymentIntent = await stripe.paymentIntents.retrieve(order.paymentIntentId);
+                console.log("🔄 Retrieving existing PaymentIntent:", order.paymentIntentId);
 
+                paymentIntent = await stripe.paymentIntents.retrieve(
+                    order.paymentIntentId
+                );
+
+                console.log("📡 Stripe PaymentIntent status:", paymentIntent.status);
+
+                // ❌ FIX ICI (ancien bug)
                 if (paymentIntent.status === "succeeded") {
+                    console.log("❌ Already succeeded");
                     return res.status(400).json({
                         ok: false,
                         message: "❌ Payment already completed"
                     });
                 }
             } catch (err) {
-                console.log("⚠️ Invalid old PaymentIntent, creating new one");
+                console.log("⚠️ Invalid PaymentIntent, recreating...");
+                console.log(err.message);
                 order.paymentIntentId = null;
             }
         }
 
+        // 🆕 CREATE PAYMENT INTENT
         if (!paymentIntent || !paymentIntent.id) {
+            console.log("🆕 Creating new PaymentIntent");
+
             paymentIntent = await stripe.paymentIntents.create({
                 amount: amountInCents,
                 currency: "eur",
@@ -66,10 +96,17 @@ async function createPaymentIntent(req, res, next) {
                     userId: req.user.id
                 }
             });
+
+            console.log("✅ PaymentIntent created:", paymentIntent.id);
         }
 
         order.paymentIntentId = paymentIntent.id;
+
+        console.log("💾 Saving order with paymentIntentId");
+
         await order.save();
+
+        console.log("✅ Order saved");
 
         await createAuditLog({
             req,
@@ -83,6 +120,8 @@ async function createPaymentIntent(req, res, next) {
             }
         });
 
+        console.log("📜 Audit log created");
+
         return res.status(200).json({
             ok: true,
             clientSecret: paymentIntent.client_secret,
@@ -91,7 +130,8 @@ async function createPaymentIntent(req, res, next) {
         });
 
     } catch (error) {
-        console.error("🔥 Stripe error:", error);
+        console.error("🔥 STRIPE CREATE PAYMENT INTENT ERROR:");
+        console.error(error);
         return res.status(500).json({
             ok: false,
             message: "❌ Internal server error",
