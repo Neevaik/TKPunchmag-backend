@@ -6,7 +6,6 @@ const cors = require("cors");
 const connectDB = require("./config/database");
 const errorHandler = require("./middlewares/errorHandler");
 
-
 require("dotenv").config();
 
 const usersRoutes = require("./routes/auth");
@@ -16,9 +15,7 @@ const orderRoutes = require("./routes/order");
 const paymentRoutes = require("./routes/payment");
 
 const app = express();
-console.log("🔥 BEFORE MONGO");
-connectDB();
-console.log("🔥 AFTER MONGO");
+
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
@@ -40,8 +37,24 @@ app.get("/", (req, res) => {
     res.send("API running");
 });
 
-console.log("🔥 ABOUT TO LISTEN");
-    
-app.listen(process.env.PORT || 5000, () => {
-    console.log(`✅ Server on port : ${process.env.PORT}`);
-});
+const startServer = async () => {
+    try {
+        console.log("🔥 BEFORE MONGO");
+
+        await connectDB();
+
+        console.log("🔥 AFTER MONGO");
+
+        const PORT = process.env.PORT || 5000;
+
+        app.listen(PORT, () => {
+            console.log(`✅ Server running on port ${PORT}`);
+        });
+
+    } catch (error) {
+        console.error("❌ FATAL ERROR:", error);
+        process.exit(1);
+    }
+};
+
+startServer();
