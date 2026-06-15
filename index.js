@@ -1,8 +1,11 @@
+console.log("🔥 INDEX FILE LOADED");
+
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/database");
 const errorHandler = require("./middlewares/errorHandler");
+
 
 require("dotenv").config();
 
@@ -13,9 +16,9 @@ const orderRoutes = require("./routes/order");
 const paymentRoutes = require("./routes/payment");
 
 const app = express();
-
+console.log("🔥 BEFORE MONGO");
 connectDB();
-
+console.log("🔥 AFTER MONGO");
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
@@ -37,8 +40,8 @@ app.get("/", (req, res) => {
     res.send("API running");
 });
 
-console.log("🔥 APP IS STARTING...");
-
+console.log("🔥 ABOUT TO LISTEN");
+    
 app.listen(process.env.PORT || 5000, () => {
     console.log(`✅ Server on port : ${process.env.PORT}`);
 });
