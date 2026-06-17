@@ -14,14 +14,8 @@ const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
-/* =========================
-   WEBHOOK STRIPE (IMPORTANT)
-========================= */
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
-/* =========================
-   MIDDLEWARES
-========================= */
 app.use(express.json());
 app.use(cookieParser());
 
@@ -30,41 +24,21 @@ app.use(cors({
     credentials: true
 }));
 
-/* =========================
-   ROUTES
-========================= */
 app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
 app.use("/payment", paymentRoutes);
 
-/* =========================
-   HEALTH CHECK
-========================= */
 app.get("/", (req, res) => {
-    res.send("API running");
+    res.send("Server works");
 });
 
-app.get("/health", (req, res) => {
-    res.json({
-        ok: true,
-        message: "Backend is alive"
-    });
-});
-
-/* =========================
-   ERROR HANDLER
-========================= */
 app.use(errorHandler);
 
-/* =========================
-   START SERVER (IMPORTANT)
-========================= */
 const startServer = async () => {
     try {
         console.log("🔥 STARTING BACKEND...");
-
         console.log("🔥 CONNECTING TO DATABASE...");
         await connectDB();
 
