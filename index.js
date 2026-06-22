@@ -19,10 +19,23 @@ app.use("/payment/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use(cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true
-}));
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://tk-punchmag-frontend.vercel.app"
+];
+
+app.use(
+    cors({
+        origin: function (origin, callback) {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
+        credentials: true,
+    })
+);
 
 app.use("/user", usersRoutes);
 app.use("/product", productRoutes);
