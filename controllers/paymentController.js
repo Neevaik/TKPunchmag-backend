@@ -1,6 +1,7 @@
 const Order = require("../models/Order");
 const stripe = require("../config/stripe");
 const createAuditLog = require("../utils/createAuditLog");
+const sendMail = require('../utils/sendMail')
 
 async function createPaymentIntent(req, res, next) {
     try {
@@ -145,16 +146,51 @@ const handleWebhook = async (req, res) => {
 
     if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
-
         const orderId = paymentIntent.metadata.orderId;
 
-        await Order.findByIdAndUpdate(orderId, {
-            status: "success"
-        });
+        const order = await Order.findByIdAndUpdate(
+            orderId,
+            { status: "paid" },
+            { new: true }
+        ).populate("user", "username email");
+
+        if (order) {
+            await createAuditLog({
+                req: { user: "stripe-webhook" },
+                action: "ORDER_PAID",
+                entityType: "Order",
+                entityId: order._id,
+                before: { status: "pending" },
+                after: { status: "paid" }
+            });
+
+            const itemsHtml = order.products
+                .map(p => `<li>${p.name} x${p.quantity} — ${p.price * p.quantity} €</li>`)
+                .join("");
+
+            const html = `
+                <h2>Merci pour votre commande, ${order.user.username} !</h2>
+                <p>Votre paiement a été confirmé. Voici le récapitulatif :</p>
+                <ul>${itemsHtml}</ul>
+                <p><strong>Total : ${order.totalPrice} €</strong></p>
+                <p>Numéro de commande : ${order._id}</p>
+            `;
+
+            try {
+                await sendMail({
+                    to: order.user.email,
+                    subject: "Confirmation de votre commande",
+                    html
+                });
+            } catch (err) {
+                console.error("⚠️ Échec envoi email de confirmation:", err.message);
+            }
+        } else {
+            console.warn("⚠️ Order not found for paymentIntent:", paymentIntent.id);
+        }
     }
+
     res.json({ received: true });
 };
-
-module.exports = handleWebhook;
 
 module.exports = { createPaymentIntent, handleWebhook, updateOrderByPaymentIntent };
