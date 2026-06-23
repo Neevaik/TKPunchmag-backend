@@ -3,6 +3,10 @@ const User = require("../models/User");
 
 function verifyToken(req, res, next) {
   try {
+    console.log("=== DEBUG COOKIE ===");
+    console.log("headers.cookie:", req.headers.cookie);
+    console.log("req.cookies:", req.cookies);
+    console.log("====================");
     const token = req.cookies?.token || req.headers?.authorization?.split(" ")[1];
     if (!token) {
       return res.status(401).json({

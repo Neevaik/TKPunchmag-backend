@@ -22,7 +22,8 @@ async function signup(req, res, next) {
 
         res.cookie("token", token, {
             httpOnly: true,
-            sameSite: "strict",
+            secure: true,
+            sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000,
         });
 
@@ -66,7 +67,8 @@ async function login(req, res, next) {
 
         res.cookie("token", token, {
             httpOnly: true,
-            sameSite: "strict",
+            secure: true,
+            sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000,
         });
 
@@ -75,7 +77,6 @@ async function login(req, res, next) {
             message: "✅ User connected",
             id: user._id,
             role: user.role,
-            token,
         });
 
     } catch (error) {
