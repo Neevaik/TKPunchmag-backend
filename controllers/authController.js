@@ -22,26 +22,22 @@ async function signup(req, res, next) {
 
         res.cookie("token", token, {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production",
             sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000,
         });
 
         res.status(201).json({
             ok: true,
-            message: "✅ User created",
+            message: "✅ New user created",
             id: newUser._id,
-            token
         });
 
     } catch (error) {
-        if (error.code === 11000) {
-            return res.status(409).json({
-                ok: false,
-                message: "❌ Username ou email déjà utilisé"
-            });
-        }
-        next(error);
+        return res.status(409).json({
+            ok: false,
+            message: "❌ Username ou email déjà utilisé"
+        });
     }
 }
 

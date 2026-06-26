@@ -2,7 +2,7 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/database");
-const errorHandler = require("./middlewares/errorHandler");
+const errorHandler = require("./utils/errorHandler");
 
 require("dotenv").config();
 
@@ -51,13 +51,9 @@ app.use(errorHandler);
 
 const startServer = async () => {
     try {
-        console.log("🔥 STARTING BACKEND...");
-        console.log("🔥 CONNECTING TO DATABASE...");
         await connectDB();
 
         const PORT = process.env.PORT;
-
-        console.log("🔥 NORTHFLANK PORT:", PORT);
 
         if (!PORT) {
             throw new Error("❌ PORT not provided by Northflank");
