@@ -7,18 +7,16 @@ async function signup(req, res, next) {
     try {
         let { username, email, password } = req.body;
 
-        username = username.trim();
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newUser = new User({
-            username,
-            email,
+            username: username.trim(),
+            email: email.trim(),
             password: hashedPassword,
         });
 
-        const token = await generateToken(newUser);
-
         await newUser.save();
+        const token = await generateToken(newUser);
 
         res.cookie("token", token, {
             httpOnly: true,
@@ -46,24 +44,20 @@ async function login(req, res, next) {
         const { username, password } = req.body;
 
         const user = await User.findOne({ username });
-        if (!user) {
+
+
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({
                 ok: false,
-                message: "User not found"
+                message: "Invalid credentials"
             });
         }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) return res.status(401).json({
-            ok: false,
-            message: "❌ Invalid credentials"
-        });
 
         const token = await generateToken(user);
 
         res.cookie("token", token, {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production",
             sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000,
         });
@@ -76,7 +70,7 @@ async function login(req, res, next) {
         });
 
     } catch (error) {
-        next(error);
+        res.status(500).json({ message: error.message });
     }
 }
 
@@ -84,7 +78,8 @@ async function logout(req, res, next) {
     try {
         res.clearCookie("token", {
             httpOnly: true,
-            sameSite: "strict",
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "none",
         });
 
         return res.status(200).json({
