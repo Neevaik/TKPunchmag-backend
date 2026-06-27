@@ -133,7 +133,10 @@ async function verifyExistingUser(req, res, next) {
 
     next();
   } catch (error) {
-    next(error);
+    return res.status(404).json({
+      ok: false,
+      message: "❌ User not found"
+    });
   }
 }
 

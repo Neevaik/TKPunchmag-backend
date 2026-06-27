@@ -2,6 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../middlewares/generateToken");
 const createAuditLog = require("../utils/createAuditLog");
+const { verifyExistingUser } = require("../middlewares/verifications");
 
 async function signup(req, res, next) {
     try {
@@ -98,6 +99,7 @@ async function updateUser(req, res, next) {
         const userId = req.params.id;
 
         const user = await User.findById(userId);
+
         if (!user) {
             return res.status(404).json({
                 ok: false,
