@@ -22,7 +22,7 @@ async function signup(req, res, next) {
         res.cookie("token", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "none",
+            sameSite: "lax",
             maxAge: 24 * 60 * 60 * 1000,
         });
 
@@ -45,7 +45,7 @@ async function login(req, res, next) {
         const { username, password } = req.body;
 
         const user = await User.findOne({ username });
-        
+
         if (!user) {
             return res.status(401).json({
                 ok: false,
