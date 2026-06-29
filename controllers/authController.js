@@ -45,12 +45,18 @@ async function login(req, res, next) {
         const { username, password } = req.body;
 
         const user = await User.findOne({ username });
-
-
-        if (!user || !(await bcrypt.compare(password, user.password))) {
+        
+        if (!user) {
             return res.status(401).json({
                 ok: false,
-                message: "Invalid credentials"
+                message: "Utilisateur introuvable"
+            });
+        }
+
+        if (!(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({
+                ok: false,
+                message: "Mot de passe incorrecte"
             });
         }
 

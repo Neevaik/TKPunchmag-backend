@@ -119,15 +119,15 @@ async function verifyExistingUser(req, res, next) {
     if (!username) {
       return res.status(400).json({
         ok: false,
-        message: "❌ Username is required"
+        message: "❌ Nom d'utilisateur manquant"
       });
     }
 
     const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(409).json({
+    if (!existingUser) {
+      return res.status(401).json({
         ok: false,
-        message: "❌ Username already exists"
+        message: "Nom utilisateur incorrect"
       });
     }
 
@@ -135,9 +135,24 @@ async function verifyExistingUser(req, res, next) {
   } catch (error) {
     return res.status(404).json({
       ok: false,
-      message: "❌ User not found"
+      message: "❌ User non"
     });
   }
 }
+
+// async function verifyPassword(req, res, next) {
+
+//   const { username, password } = req.body;
+//   console.log("username : ", username)
+//   console.log("password : ", password)
+//   const user = await User.findOne({ username });
+
+//   if (!(await bcrypt.compare(password, user.password))) {
+//     return res.status(401).json({
+//       ok: false,
+//       message: "Mot de passe incorrecte"
+//     });
+//   }
+// }
 
 module.exports = { verifyBody, verifyToken, requireRole, verifyExistingUser };
